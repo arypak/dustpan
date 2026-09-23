@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleDisplayName</key>
+	<string>Dustpan</string>
+	<key>CFBundleExecutable</key>
+	<string>Dustpan</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>CFBundleIdentifier</key>
+	<string>__BUNDLE_ID__</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>Dustpan</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>__VERSION__</string>
+	<key>CFBundleVersion</key>
+	<string>__BUILD__</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.utilities</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>14.0</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSHumanReadableCopyright</key>
+	<string>Open source under the MIT License.</string>
+	<key>NSDesktopFolderUsageDescription</key>
+	<string>Dustpan looks for build folders such as node_modules in the projects on your Desktop. It only reads sizes until you ask it to move something.</string>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>Dustpan looks for build folders such as node_modules in the projects in Documents. It only reads sizes until you ask it to move something.</string>
+	<key>NSDownloadsFolderUsageDescription</key>
+	<string>Dustpan looks for old installers in Downloads. It only reads sizes until you ask it to move something.</string>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>When an item needs your password to move, Dustpan asks Finder to move it to the Trash for you.</string>
+</dict>
+</plist>

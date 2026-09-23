@@ -8,18 +8,18 @@ struct CategoryView: View {
     var body: some View {
         let findings = model.findings(in: category)
         let safe = model.cleanableBytes(.safe, in: category)
+        let items = findings.reduce(0) { $0 + $1.targets.count }
         Form {
             Section {
                 HStack(alignment: .firstTextBaseline) {
                     VStack(alignment: .leading, spacing: 2) {
                         SizeText(bytes: model.bytes(in: category), font: .largeTitle.weight(.semibold))
-                        let items = findings.reduce(0) { $0 + $1.targets.count }
-                        Text("\(items) item\(items == 1 ? "" : "s")")
+                        Text(items == 1 ? L("1 item") : L("%@ items", String(items)))
                             .foregroundStyle(.secondary)
                     }
                     Spacer()
                     if safe > 0 {
-                        Button("Select Safe (\(Format.bytes(safe)))") { model.select(.safe, in: category) }
+                        Button(L("Select Safe (%@)", Format.bytes(safe))) { model.select(.safe, in: category) }
                     }
                 }
                 .padding(.vertical, 4)
@@ -39,48 +39,62 @@ private struct FindingSection: View {
 
     var body: some View {
         let rule = finding.rule
-        let expanded = model.isOpen(finding)
         Section {
             header
             if finding.locked {
                 HStack {
-                    Label("Dustpan needs Full Disk Access to look here.", systemImage: "lock")
+                    Label(L("Dustpan needs Full Disk Access to look here."), systemImage: "lock")
                         .foregroundStyle(.secondary)
                     Spacer()
-                    Button("Open Privacy Settings") { SystemActions.openFullDiskAccessSettings() }
+                    Button(L("Open Privacy Settings")) { SystemActions.openFullDiskAccessSettings() }
                 }
-            } else if finding.targets.count == 1 && finding.targets[0].command == nil {
-                TargetRow(finding: finding, target: finding.targets[0], showsCheckbox: false)
-            } else if expanded || !finding.isCleanable {
-                ForEach(finding.targets) { target in
-                    TargetRow(finding: finding, target: target, showsCheckbox: model.isSelectable(finding))
+            } else if !model.isRevealed(finding) {
+                HStack {
+                    Label(L("Hidden until you ask: these may be files or tools you still use."), systemImage: "eye.slash")
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button(L("Show Items…")) { model.requestReveal(finding) }
                 }
-            }
-            switch rule.cleanup {
-            case .command(let command) where finding.targets.allSatisfy({ $0.command == nil }):
-                CommandRow(command: command)
-            case .manual(let steps):
-                Label(steps, systemImage: "hand.point.up.left")
-                    .foregroundStyle(.secondary)
-            default:
-                EmptyView()
+            } else {
+                items
+                switch rule.cleanup {
+                case .command(let command) where finding.targets.allSatisfy({ $0.command == nil }):
+                    CommandRow(command: command)
+                case .manual:
+                    Label(rule.cleanup.localizedSteps ?? "", systemImage: "hand.point.up.left")
+                        .foregroundStyle(.secondary)
+                default:
+                    EmptyView()
+                }
             }
         } footer: {
             footer(rule)
         }
     }
 
+    @ViewBuilder
+    private var items: some View {
+        if finding.targets.count == 1 && finding.targets[0].command == nil {
+            TargetRow(finding: finding, target: finding.targets[0], showsCheckbox: false)
+        } else if model.isOpen(finding) || !finding.isCleanable {
+            ForEach(finding.targets) { target in
+                TargetRow(finding: finding, target: target, showsCheckbox: model.isSelectable(finding))
+            }
+        }
+    }
+
     private var header: some View {
         let rule = finding.rule
-        let expanded = model.isOpen(finding)
         return HStack(alignment: .center, spacing: 10) {
             if model.isSelectable(finding) {
                 Checkbox(state: model.state(of: finding)) { model.toggle(finding) }
             } else {
-                Image(systemName: finding.locked ? "lock.fill" : "terminal")
+                Image(systemName: finding.locked ? "lock.fill" : !model.isRevealed(finding) ? "eye.slash" : "terminal")
                     .foregroundStyle(.secondary)
                     .frame(width: 18)
-                    .help(finding.locked ? "Needs Full Disk Access" : "Dustpan leaves this to the tool that owns it")
+                    .help(finding.locked ? L("Needs Full Disk Access")
+                          : !model.isRevealed(finding) ? L("Asks before opening")
+                          : L("The tool that owns this should clean it"))
             }
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 8) {
@@ -101,9 +115,9 @@ private struct FindingSection: View {
                     withAnimation(.snappy) { model.toggleOpen(finding) }
                 } label: {
                     HStack(spacing: 4) {
-                        Text("\(finding.targets.count) items")
+                        Text(L("%@ items", String(finding.targets.count)))
                         Image(systemName: "chevron.right")
-                            .rotationEffect(.degrees(expanded ? 90 : 0))
+                            .rotationEffect(.degrees(model.isOpen(finding) ? 90 : 0))
                     }
                     .font(.callout)
                     .foregroundStyle(.secondary)
@@ -120,7 +134,7 @@ private struct FindingSection: View {
         VStack(alignment: .leading, spacing: 3) {
             Text(rule.aftermath)
             if !rule.quitFirst.isEmpty {
-                Text("Quit \(rule.quitFirst.joined(separator: ", ")) first.")
+                Text(L("Quit first: %@.", rule.quitFirst.joined(separator: ", ")))
             }
             if let note = rule.note {
                 Text(note)
@@ -128,6 +142,7 @@ private struct FindingSection: View {
         }
         .font(.footnote)
         .foregroundStyle(.secondary)
+        .multilineTextAlignment(.leading)
         .fixedSize(horizontal: false, vertical: true)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -172,12 +187,12 @@ private struct TargetRow: View {
             }
             .buttonStyle(.borderless)
             .opacity(hovering ? 1 : 0.35)
-            .help("Show in Finder")
+            .help(L("Show in Finder"))
         }
         .onHover { hovering = $0 }
         .contextMenu {
-            Button("Show in Finder") { SystemActions.reveal(target.url) }
-            Button("Copy Path") { SystemActions.copy(target.url.path) }
+            Button(L("Show in Finder")) { SystemActions.reveal(target.url) }
+            Button(L("Copy Path")) { SystemActions.copy(target.url.path) }
         }
     }
 }

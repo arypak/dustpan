@@ -9,6 +9,54 @@ enum SidebarItem: Hashable {
     case category(RuleCategory)
 }
 
+enum AppearancePreference: String, CaseIterable, Identifiable {
+    case system, light, dark
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .system: L("System")
+        case .light: L("Light")
+        case .dark: L("Dark")
+        }
+    }
+
+    var appearance: NSAppearance? {
+        switch self {
+        case .system: nil
+        case .light: NSAppearance(named: .aqua)
+        case .dark: NSAppearance(named: .darkAqua)
+        }
+    }
+}
+
+enum LanguagePreference: String, CaseIterable, Identifiable {
+    case system
+    case english = "en"
+    case turkish = "tr"
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .system: L("System")
+        case .english: Language.english.nativeName
+        case .turkish: Language.turkish.nativeName
+        }
+    }
+
+    var language: Language {
+        Language(rawValue: rawValue) ?? .system
+    }
+}
+
+/// Something the user has to agree to see first.
+enum Reveal: Equatable {
+    case category(RuleCategory)
+    case finding(String)
+}
+
 @MainActor
 @Observable
 final class AppModel {
@@ -26,24 +74,66 @@ final class AppModel {
     private(set) var report: ScanReport?
     /// Selected target ids (their paths).
     var selection: Set<String> = []
-    /// Findings the user opened or closed. Review findings start open, the rest closed.
+    /// Findings the user opened or closed, relative to how they start.
     var toggledOpen: Set<String> = []
-    var sidebar: SidebarItem? = .overview
+    private(set) var sidebar: SidebarItem? = .overview
     var sheet: Sheet?
     var result: CleanResult?
     /// Bytes this session has moved to the Trash.
     private(set) var sweptBytes: Int64 = 0
 
+    /// Review items stay out of sight until the user agrees to see them, once per launch.
+    private(set) var revealedFindings: Set<String> = []
+    private(set) var revealedCategories: Set<RuleCategory> = []
+    var pendingReveal: Reveal?
+
     var projectRoots: [URL] {
         didSet { UserDefaults.standard.set(projectRoots.map(\.path), forKey: "projectRoots") }
     }
 
+    var appearance: AppearancePreference {
+        didSet {
+            UserDefaults.standard.set(appearance.rawValue, forKey: "appearance")
+            applyAppearance()
+        }
+    }
+
+    var languagePreference: LanguagePreference {
+        didSet {
+            UserDefaults.standard.set(languagePreference.rawValue, forKey: "language")
+            // AppKit's own menus follow AppleLanguages, which it reads at launch.
+            if languagePreference == .system {
+                UserDefaults.standard.removeObject(forKey: "AppleLanguages")
+            } else {
+                UserDefaults.standard.set([languagePreference.rawValue], forKey: "AppleLanguages")
+            }
+            applyLanguage()
+        }
+    }
+
+    /// The language on screen. Views use it as an identity, so changing it redraws everything.
+    private(set) var language: Language = .english
+
     @ObservationIgnored private var scanTask: Task<Void, Never>?
 
     init() {
-        let saved = UserDefaults.standard.stringArray(forKey: "projectRoots")
-        projectRoots = saved?.map { URL(fileURLWithPath: $0) }
+        let defaults = UserDefaults.standard
+        projectRoots = defaults.stringArray(forKey: "projectRoots")?.map { URL(fileURLWithPath: $0) }
             ?? ProjectScanner.defaultRoots(home: FileManager.default.homeDirectoryForCurrentUser)
+        appearance = AppearancePreference(rawValue: defaults.string(forKey: "appearance") ?? "") ?? .system
+        languagePreference = LanguagePreference(rawValue: defaults.string(forKey: "language") ?? "") ?? .system
+        applyLanguage()
+    }
+
+    private func applyLanguage() {
+        // DUSTPAN_LANG lets screenshots use a fixed language without touching the saved choice.
+        let forced = ProcessInfo.processInfo.environment["DUSTPAN_LANG"].flatMap(Language.init(rawValue:))
+        Localization.language = forced ?? languagePreference.language
+        language = Localization.language
+    }
+
+    func applyAppearance() {
+        NSApp?.appearance = appearance.appearance
     }
 
     // MARK: Scanning
@@ -83,14 +173,6 @@ final class AppModel {
         }
     }
 
-    func isOpen(_ finding: Finding) -> Bool {
-        toggledOpen.contains(finding.id) != (finding.rule.safety == .review)
-    }
-
-    func toggleOpen(_ finding: Finding) {
-        if toggledOpen.contains(finding.id) { toggledOpen.remove(finding.id) } else { toggledOpen.insert(finding.id) }
-    }
-
     func bytes(in category: RuleCategory) -> Int64 {
         findings(in: category).reduce(0) { $0 + $1.bytes }
     }
@@ -99,10 +181,72 @@ final class AppModel {
         RuleCategory.allCases.filter { !findings(in: $0).isEmpty }
     }
 
+    // MARK: Risky things
+
+    /// Review findings can be apps, VMs, backups or projects someone still uses.
+    func isRisky(_ finding: Finding) -> Bool {
+        finding.rule.safety == .review && !finding.locked
+    }
+
+    func isRevealed(_ finding: Finding) -> Bool {
+        !isRisky(finding) || revealedFindings.contains(finding.id) || revealedCategories.contains(finding.rule.category)
+    }
+
+    /// A category made only of risky findings asks before it opens at all.
+    func isRisky(_ category: RuleCategory) -> Bool {
+        let visible = findings(in: category).filter { !$0.locked }
+        return !visible.isEmpty && visible.allSatisfy { isRisky($0) }
+    }
+
+    func asksBeforeOpening(_ category: RuleCategory) -> Bool {
+        isRisky(category) && !revealedCategories.contains(category)
+    }
+
+    func navigate(to item: SidebarItem?) {
+        guard let item else { return }
+        if case .category(let category) = item, asksBeforeOpening(category) {
+            pendingReveal = .category(category)
+            // The list already highlighted the clicked row; touch the selection so it snaps back
+            // to the page that's actually showing.
+            let showing = sidebar
+            sidebar = nil
+            sidebar = showing
+            return
+        }
+        sidebar = item
+    }
+
+    func requestReveal(_ finding: Finding) {
+        pendingReveal = .finding(finding.id)
+    }
+
+    func confirmReveal() {
+        switch pendingReveal {
+        case .category(let category):
+            revealedCategories.insert(category)
+            sidebar = .category(category)
+        case .finding(let id):
+            revealedFindings.insert(id)
+        case nil:
+            break
+        }
+        pendingReveal = nil
+    }
+
+    /// Risky findings open once revealed; everything else starts closed.
+    func isOpen(_ finding: Finding) -> Bool {
+        guard isRevealed(finding) else { return false }
+        return toggledOpen.contains(finding.id) != isRisky(finding)
+    }
+
+    func toggleOpen(_ finding: Finding) {
+        if toggledOpen.contains(finding.id) { toggledOpen.remove(finding.id) } else { toggledOpen.insert(finding.id) }
+    }
+
     // MARK: Selection
 
     func isSelectable(_ finding: Finding) -> Bool {
-        finding.isCleanable && !finding.locked
+        finding.isCleanable && !finding.locked && isRevealed(finding)
     }
 
     func state(of finding: Finding) -> NSControl.StateValue {
@@ -135,14 +279,15 @@ final class AppModel {
         }
     }
 
+    /// What Dustpan could move for a safety level, revealed or not.
     func cleanableBytes(_ safety: Safety, in category: RuleCategory? = nil) -> Int64 {
-        findings.filter { isSelectable($0) && $0.rule.safety == safety && (category == nil || $0.rule.category == category) }
+        findings.filter { $0.isCleanable && !$0.locked && $0.rule.safety == safety && (category == nil || $0.rule.category == category) }
             .reduce(0) { $0 + $1.bytes }
     }
 
-    /// Selected targets, grouped by the finding they belong to.
+    /// Selected targets, grouped by the finding they belong to, biggest first.
     var selectedGroups: [(finding: Finding, targets: [Target])] {
-        findings.filter(isSelectable).compactMap { finding -> (finding: Finding, targets: [Target])? in
+        findings.filter { isSelectable($0) }.compactMap { finding -> (finding: Finding, targets: [Target])? in
             let targets = finding.targets.filter { selection.contains($0.id) }
             return targets.isEmpty ? nil : (finding, targets)
         }
@@ -215,5 +360,12 @@ final class AppModel {
         if case .category(let category) = sidebar, findings(in: category).isEmpty {
             sidebar = .overview
         }
+    }
+
+    // MARK: Screenshots
+
+    /// Lets the snapshot tool visit pages without going through the confirmation.
+    func showForSnapshot(_ item: SidebarItem) {
+        sidebar = item
     }
 }

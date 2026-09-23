@@ -16,9 +16,9 @@ struct CatalogTests {
     @Test("Every rule explains itself in full sentences")
     func copy() {
         for rule in Catalog.rules {
-            #expect(!rule.name.isEmpty)
-            #expect(rule.summary.hasSuffix("."), "\(rule.id) summary")
-            #expect(rule.aftermath.hasSuffix("."), "\(rule.id) aftermath")
+            #expect(!rule.englishName.isEmpty)
+            #expect(rule.englishSummary.hasSuffix("."), "\(rule.id) summary")
+            #expect(rule.englishAftermath.hasSuffix("."), "\(rule.id) aftermath")
         }
     }
 

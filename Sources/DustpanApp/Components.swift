@@ -16,7 +16,7 @@ struct SafetyBadge: View {
     let safety: Safety
 
     var body: some View {
-        Text(safety.title.uppercased())
+        Text(Localization.uppercased(safety.title))
             .font(.system(size: 9.5, weight: .bold))
             .tracking(0.4)
             .foregroundStyle(safety.color)
@@ -110,6 +110,13 @@ struct LegendDot: View {
     }
 }
 
+/// A translated sentence with one `%@`, the value set in semibold.
+func emphasized(_ template: String, _ value: String) -> Text {
+    let parts = template.components(separatedBy: "%@")
+    guard parts.count == 2 else { return Text(template.replacingOccurrences(of: "%@", with: value)) }
+    return Text(parts[0]) + Text(value).fontWeight(.semibold) + Text(parts[1])
+}
+
 /// A command the user should run themselves, with a copy button.
 struct CommandRow: View {
     let command: String
@@ -127,7 +134,7 @@ struct CommandRow: View {
                 copied = true
                 Task { try? await Task.sleep(for: .seconds(1.5)); copied = false }
             } label: {
-                Label(copied ? "Copied" : "Copy", systemImage: copied ? "checkmark" : "doc.on.doc")
+                Label(copied ? L("Copied") : L("Copy"), systemImage: copied ? "checkmark" : "doc.on.doc")
             }
             .controlSize(.small)
         }

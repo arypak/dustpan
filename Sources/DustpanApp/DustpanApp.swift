@@ -11,33 +11,48 @@ struct DustpanApp: App {
         Window("Dustpan", id: "main") {
             ContentView()
                 .environment(model)
+                .id(model.language)
                 .frame(minWidth: 860, minHeight: 560)
         }
         .defaultSize(width: 1100, height: 740)
         .commands {
             CommandGroup(replacing: .newItem) {}
-            CommandMenu("Sweep") {
-                Button("Scan Again") { model.scan() }
+            CommandMenu(model.L("Sweep")) {
+                Button(model.L("Scan Again")) { model.scan() }
                     .keyboardShortcut("r")
                     .disabled(model.phase == .scanning || model.phase == .cleaning)
-                Button("Select Everything Safe") { model.select(.safe) }
+                Button(model.L("Select All Safe")) { model.select(.safe) }
                     .keyboardShortcut("a", modifiers: [.command, .shift])
                     .disabled(model.report == nil)
-                Button("Clear Selection") { model.selection.removeAll() }
+                Button(model.L("Clear Selection")) { model.selection.removeAll() }
                     .disabled(model.selection.isEmpty)
                 Divider()
-                Button("Move to Trash…") { model.sheet = .confirm }
+                Button(model.L("Move to Trash…")) { model.sheet = .confirm }
                     .keyboardShortcut(.delete, modifiers: .command)
                     .disabled(model.selection.isEmpty || model.phase != .ready)
                 Divider()
-                Button("Open Trash") { SystemActions.openTrash() }
+                Button(model.L("Open Trash")) { SystemActions.openTrash() }
+            }
+            CommandGroup(after: .sidebar) {
+                Picker(model.L("Appearance"), selection: $model.appearance) {
+                    ForEach(AppearancePreference.allCases) { Text($0.title).tag($0) }
+                }
             }
         }
 
         Settings {
             SettingsView()
                 .environment(model)
+                .id(model.language)
         }
+    }
+}
+
+extension AppModel {
+    /// Translates like `L(_:)`, and also tells SwiftUI to redraw the caller when the language changes.
+    func L(_ key: String) -> String {
+        _ = language
+        return DustpanCore.L(key)
     }
 }
 

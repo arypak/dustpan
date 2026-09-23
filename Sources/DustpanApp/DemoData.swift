@@ -10,20 +10,19 @@ enum DemoData {
         let home = URL(fileURLWithPath: "/Users/you")
         let now = Date()
         func ago(_ days: Double) -> Date { now.addingTimeInterval(-days * 86_400) }
-        func item(_ path: String, _ gb: Double, label: String? = nil, detail: String? = nil, modified: Date? = nil, command: String? = nil) -> Target {
+        func item(_ path: String, _ gb: Double, label: String? = nil, note: TargetNote? = nil, modified: Date? = nil, command: String? = nil) -> Target {
             let url = path.hasPrefix("/") ? URL(fileURLWithPath: path) : home.appendingPathComponent(path)
             return Target(url: url, bytes: Int64(gb * 1_000_000_000), modified: modified,
-                          label: label ?? "~/" + path, detail: detail, command: command)
+                          label: label ?? "~/" + path, note: note, command: command)
         }
         func child(_ path: String, _ gb: Double, days: Double) -> Target {
-            item(path, gb, label: (path as NSString).lastPathComponent, detail: "Modified \(Format.relative(ago(days)))", modified: ago(days))
+            item(path, gb, label: (path as NSString).lastPathComponent, note: .modified(ago(days)), modified: ago(days))
         }
         func project(_ path: String, _ gb: Double, days: Double) -> Target {
-            let parts = path.split(separator: "/")
-            return item("Code/" + path, gb, label: parts.joined(separator: "/"), detail: "~/Code · touched \(Format.relative(ago(days)))", modified: ago(days))
+            item("Code/" + path, gb, label: path, note: .touched(ago(days), in: "~/Code"), modified: ago(days))
         }
         func app(_ name: String, _ gb: Double, days: Double) -> Target {
-            item("/Applications/\(name).app", gb, label: name, detail: "Last opened \(Format.relative(ago(days)))", modified: ago(days))
+            item("/Applications/\(name).app", gb, label: name, note: .lastOpened(ago(days)), modified: ago(days))
         }
 
         let found: [String: [Target]] = [
@@ -46,8 +45,8 @@ enum DemoData {
             ],
             "xcode-archives": [child("Library/Developer/Xcode/Archives/2025-06-02", 1.1, days: 110), child("Library/Developer/Xcode/Archives/2025-03-18", 0.9, days: 186)],
             "simulator-runtimes": [
-                item("/Library/Developer/CoreSimulator/Volumes/iOS_22F77", 8.4, label: "iOS 18.5 (22F77)", detail: "Last used yesterday", command: "xcrun simctl runtime delete 2E4B…"),
-                item("/Library/Developer/CoreSimulator/Volumes/iOS_21F79", 7.9, label: "iOS 17.5 (21F79)", detail: "Last used 7 months ago", command: "xcrun simctl runtime delete 9A1C…"),
+                item("/Library/Developer/CoreSimulator/Volumes/iOS_22F77", 8.4, label: "iOS 18.5 (22F77)", note: .lastUsed(ago(1)), command: "xcrun simctl runtime delete 2E4B…"),
+                item("/Library/Developer/CoreSimulator/Volumes/iOS_21F79", 7.9, label: "iOS 17.5 (21F79)", note: .lastUsed(ago(214)), command: "xcrun simctl runtime delete 9A1C…"),
             ],
             "simulator-unavailable": [item("Library/Developer/CoreSimulator/Devices/5C2A", 1.3, label: "iPhone 15 Pro · iOS 17.2")],
             "homebrew-cache": [item("Library/Caches/Homebrew", 2.1)],

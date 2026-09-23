@@ -11,17 +11,17 @@ public enum Safety: String, Codable, Sendable, CaseIterable, Comparable {
 
     public var title: String {
         switch self {
-        case .safe: "Safe"
-        case .caution: "Caution"
-        case .review: "Review"
+        case .safe: L("Safe")
+        case .caution: L("Caution")
+        case .review: L("Review")
         }
     }
 
     public var explanation: String {
         switch self {
-        case .safe: "Regenerates on its own"
-        case .caution: "Comes back after a re-download or rebuild"
-        case .review: "Your data or tools you may still use"
+        case .safe: L("Regenerates on its own")
+        case .caution: L("Comes back after a re-download or rebuild")
+        case .review: L("Your data or tools you may still use")
         }
     }
 
@@ -44,15 +44,15 @@ public enum Category: String, Codable, Sendable, CaseIterable, Identifiable {
 
     public var title: String {
         switch self {
-        case .caches: "App Caches"
-        case .xcode: "Xcode & Simulators"
-        case .packages: "Package Managers"
-        case .projects: "Build Artifacts"
-        case .toolchains: "SDKs & Toolchains"
-        case .virtualization: "VMs & Containers"
-        case .aiModels: "AI Models"
-        case .applications: "Large Apps"
-        case .files: "Downloads & Backups"
+        case .caches: L("App Caches")
+        case .xcode: L("Xcode & Simulators")
+        case .packages: L("Package Managers")
+        case .projects: L("Build Artifacts")
+        case .toolchains: L("SDKs & Toolchains")
+        case .virtualization: L("VMs & Containers")
+        case .aiModels: L("AI Models")
+        case .applications: L("Large Apps")
+        case .files: L("Downloads & Backups")
         }
     }
 
@@ -117,6 +117,15 @@ public enum Cleanup: Sendable, Hashable {
     public var isTrash: Bool {
         if case .trash = self { true } else { false }
     }
+
+    /// Manual steps, translated. Commands are never translated.
+    public var localizedSteps: String? {
+        englishSteps.map { L($0) }
+    }
+
+    public var englishSteps: String? {
+        if case .manual(let steps) = self { steps } else { nil }
+    }
 }
 
 /// How the scanner finds a rule's targets.
@@ -153,22 +162,29 @@ public struct ArtifactKind: Sendable, Hashable {
 
 public struct Rule: Sendable, Identifiable, Hashable {
     public let id: String
-    public let name: String
     public let category: Category
     public let safety: Safety
-    /// What this is, in one sentence.
-    public let summary: String
-    /// What happens after it's gone.
-    public let aftermath: String
     public let locations: [Location]
     public let discovery: Discovery
     public let cleanup: Cleanup
-    /// Apps to quit before cleaning.
+    /// Apps to quit before cleaning. App names aren't translated.
     public let quitFirst: [String]
-    /// Anything else worth knowing, e.g. why the freed space may be lower than shown.
-    public let note: String?
     /// Catch-all rules skip anything another rule already claimed.
     public let isCatchAll: Bool
+
+    /// The English source texts; the properties below translate them.
+    public let englishName: String
+    public let englishSummary: String
+    public let englishAftermath: String
+    public let englishNote: String?
+
+    public var name: String { L(englishName) }
+    /// What this is, in one sentence.
+    public var summary: String { L(englishSummary) }
+    /// What happens after it's gone.
+    public var aftermath: String { L(englishAftermath) }
+    /// Anything else worth knowing, e.g. why the freed space may be lower than shown.
+    public var note: String? { englishNote.map { L($0) } }
 
     public init(
         _ id: String,
@@ -185,16 +201,16 @@ public struct Rule: Sendable, Identifiable, Hashable {
         isCatchAll: Bool = false
     ) {
         self.id = id
-        self.name = name
+        self.englishName = name
         self.category = category
         self.safety = safety
-        self.summary = summary
-        self.aftermath = aftermath
+        self.englishSummary = summary
+        self.englishAftermath = aftermath
         self.locations = locations
         self.discovery = discovery
         self.cleanup = cleanup
         self.quitFirst = quitFirst
-        self.note = note
+        self.englishNote = note
         self.isCatchAll = isCatchAll
     }
 
@@ -211,6 +227,27 @@ public struct Rule: Sendable, Identifiable, Hashable {
     }
 }
 
+/// What to say under a target's name. Kept as data so it can be shown in any language.
+public enum TargetNote: Sendable, Hashable {
+    case modified(Date)
+    case lastOpened(Date?)
+    case lastUsed(Date)
+    case backedUp(Date)
+    /// A build folder: where its project lives and when it last changed.
+    case touched(Date, in: String)
+
+    public var text: String {
+        switch self {
+        case .modified(let date): L("Modified %@", Format.relative(date))
+        case .lastOpened(let date?): L("Last opened %@", Format.relative(date))
+        case .lastOpened(nil): L("Last opened: unknown")
+        case .lastUsed(let date): L("Last used %@", Format.relative(date))
+        case .backedUp(let date): L("Backed up %@", Format.relative(date))
+        case .touched(let date, let folder): L("%@ · touched %@", folder, Format.relative(date))
+        }
+    }
+}
+
 /// One concrete thing on disk that a rule found.
 public struct Target: Sendable, Identifiable, Hashable {
     public var id: String { url.path }
@@ -219,19 +256,21 @@ public struct Target: Sendable, Identifiable, Hashable {
     public let modified: Date?
     /// Short display name, e.g. `node_modules` or `iOS 17.2`.
     public let label: String
-    /// Secondary line, e.g. `~/Code/app · touched 3 weeks ago`.
-    public let detail: String?
+    public let note: TargetNote?
     /// A per-target command, when the rule's cleanup differs per target.
     public let command: String?
 
-    public init(url: URL, bytes: Int64, modified: Date? = nil, label: String, detail: String? = nil, command: String? = nil) {
+    public init(url: URL, bytes: Int64, modified: Date? = nil, label: String, note: TargetNote? = nil, command: String? = nil) {
         self.url = url
         self.bytes = bytes
         self.modified = modified
         self.label = label
-        self.detail = detail
+        self.note = note
         self.command = command
     }
+
+    /// Secondary line, e.g. `~/Code · touched 3 weeks ago`, in the current language.
+    public var detail: String? { note?.text }
 }
 
 /// A rule together with what it found on this Mac.

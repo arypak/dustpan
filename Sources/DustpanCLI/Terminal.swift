@@ -69,7 +69,7 @@ final class ProgressLine: @unchecked Sendable {
         lastDraw = now
         frame = (frame + 1) % frames.count
         let count = progress.total > 0 ? " \(progress.completed)/\(progress.total)" : ""
-        let line = " \(frames[frame]) Scanning\(count)  \(progress.current)".truncated(to: 72)
+        let line = " \(frames[frame]) \(L("Scanning"))\(count)  \(progress.current)".truncated(to: 72)
         FileHandle.standardError.write(Data("\r\u{1B}[2K\(Style.dim(line))".utf8))
     }
 
@@ -81,7 +81,7 @@ final class ProgressLine: @unchecked Sendable {
 
 func printError(_ message: String) {
     fflush(stdout) // keep the order right when both streams go to the same place
-    FileHandle.standardError.write(Data((Style.red("error: ") + message + "\n").utf8))
+    FileHandle.standardError.write(Data((Style.red(L("error:") + " ") + message + "\n").utf8))
 }
 
 func diskBar(_ fraction: Double, width: Int = 32) -> String {

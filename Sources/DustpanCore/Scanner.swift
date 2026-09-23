@@ -52,7 +52,7 @@ public struct Scanner: Sendable {
         let rule: Rule
         let url: URL
         let label: String
-        var detail: String?
+        var note: TargetNote?
         var modified: Date?
         var command: String?
         var knownBytes: Int64?
@@ -66,7 +66,7 @@ public struct Scanner: Sendable {
         let active = rules.filter { options.ruleIDs?.contains($0.id) ?? true }
         let resolver = PathResolver(home: home)
 
-        progress(ScanProgress(completed: 0, total: 0, current: "Looking around"))
+        progress(ScanProgress(completed: 0, total: 0, current: L("Looking around")))
 
         // Rules the scan can't see into without Full Disk Access. Only report the ones that apply here.
         let lockedRules = fullDiskAccess ? [] : active.filter { rule in
@@ -91,7 +91,7 @@ public struct Scanner: Sendable {
             guard bytes >= job.minimumBytes else { continue }
             targets[job.rule.id, default: []].append(Target(
                 url: job.url, bytes: bytes, modified: job.modified,
-                label: job.label, detail: job.detail, command: job.command
+                label: job.label, note: job.note, command: job.command
             ))
         }
 
@@ -143,12 +143,12 @@ public struct Scanner: Sendable {
                             minimumBytes: options.minimumBytes
                         )
                         if candidate.isChild {
-                            job.detail = "Modified \(Format.relative(modified))"
+                            job.note = .modified(modified)
                         }
                         if rule.discovery == .deviceBackups, let backup = Discoverers.backupInfo(url) {
                             job = Job(
                                 rule: rule, url: url, label: backup.name,
-                                detail: backup.date.map { "Backed up \(Format.relative($0))" },
+                                note: backup.date.map { .backedUp($0) },
                                 modified: backup.date, minimumBytes: options.minimumBytes
                             )
                         }
@@ -174,7 +174,7 @@ public struct Scanner: Sendable {
             return Job(
                 rule: rule, url: hit.url,
                 label: project.lastPathComponent + "/" + inside,
-                detail: "\(Format.path(project.deletingLastPathComponent(), home: options.home)) · touched \(Format.relative(hit.modified))",
+                note: .touched(hit.modified, in: Format.path(project.deletingLastPathComponent(), home: options.home)),
                 modified: hit.modified,
                 minimumBytes: options.minimumBytes
             )
@@ -188,7 +188,7 @@ public struct Scanner: Sendable {
             return Job(
                 rule: rule, url: url,
                 label: url.deletingPathExtension().lastPathComponent,
-                detail: opened.map { "Last opened \(Format.relative($0))" } ?? "Last opened: unknown",
+                note: .lastOpened(opened),
                 modified: opened,
                 minimumBytes: options.largeAppBytes
             )
@@ -202,7 +202,7 @@ public struct Scanner: Sendable {
                 Job(
                     rule: rule, url: URL(fileURLWithPath: runtime.path),
                     label: runtime.name,
-                    detail: runtime.lastUsed.map { "Last used \(Format.relative($0))" },
+                    note: runtime.lastUsed.map { .lastUsed($0) },
                     modified: runtime.lastUsed,
                     command: "xcrun simctl runtime delete \(runtime.identifier)",
                     knownBytes: runtime.bytes,

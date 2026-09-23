@@ -102,7 +102,7 @@ public struct Cleaner: Sendable {
 
     static func describe(_ error: Error) -> String {
         if isPermissionError(error) {
-            return "macOS didn't allow it. It may belong to the system or another user; try Finder."
+            return L("macOS didn't allow it. It may belong to the system or another user; try Finder.")
         }
         return (error as NSError).localizedDescription
     }

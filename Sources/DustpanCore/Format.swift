@@ -1,11 +1,12 @@
 import Foundation
 
-/// Locale-independent formatting, so the CLI, the app and the README all read the same.
+/// Formatting that follows Dustpan's language setting rather than the process locale,
+/// so the CLI, the app and the README read the same.
 public enum Format {
     /// Decimal units, like Finder and System Settings: 1 GB = 1,000,000,000 bytes.
-    public static func bytes(_ count: Int64) -> String {
+    public static func bytes(_ count: Int64, language: Language = Localization.language) -> String {
         let units = ["KB", "MB", "GB", "TB", "PB"]
-        guard count >= 1000 else { return "\(count) bytes" }
+        guard count >= 1000 else { return Localization.format("%@ bytes", [String(count)], in: language) }
         var value = Double(count)
         var unit = -1
         // 999.6 MB would print as "1000 MB", so step up a unit before rounding gets there.
@@ -13,22 +14,26 @@ public enum Format {
             value /= 1000
             unit += 1
         }
-        let rounded = value >= 99.95 ? String(format: "%.0f", value) : String(format: "%.1f", value)
+        var rounded = value >= 99.95 ? String(format: "%.0f", value) : String(format: "%.1f", value)
+        if language == .turkish { rounded = rounded.replacingOccurrences(of: ".", with: ",") }
         return "\(rounded) \(units[unit])"
     }
 
-    public static func relative(_ date: Date, now: Date = Date()) -> String {
+    public static func relative(_ date: Date, now: Date = Date(), language: Language = Localization.language) -> String {
+        func say(_ key: String, _ number: Int? = nil) -> String {
+            Localization.format(key, number.map { [String($0)] } ?? [], in: language)
+        }
         let days = Int(now.timeIntervalSince(date) / 86_400)
         switch days {
-        case ..<0: return "just now"
-        case 0: return "today"
-        case 1: return "yesterday"
-        case 2..<14: return "\(days) days ago"
-        case 14..<60: return "\(days / 7) weeks ago"
-        case 60..<365: return "\(days / 30) months ago"
+        case ..<0: return say("just now")
+        case 0: return say("today")
+        case 1: return say("yesterday")
+        case 2..<14: return say("%@ days ago", days)
+        case 14..<60: return say("%@ weeks ago", days / 7)
+        case 60..<365: return say("%@ months ago", days / 30)
         default:
             let years = days / 365
-            return years == 1 ? "a year ago" : "\(years) years ago"
+            return years == 1 ? say("a year ago") : say("%@ years ago", years)
         }
     }
 

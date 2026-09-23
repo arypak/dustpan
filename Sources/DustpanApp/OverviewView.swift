@@ -14,7 +14,7 @@ struct OverviewView: View {
                     AccessCard()
                 }
                 QuickSweepCard()
-                Text("Where the space went")
+                Text(L("Where the space went"))
                     .font(.title3.weight(.semibold))
                     .padding(.top, 4)
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 230), spacing: 14)], spacing: 14) {
@@ -27,7 +27,7 @@ struct OverviewView: View {
             .frame(maxWidth: 980, alignment: .leading)
             .frame(maxWidth: .infinity)
         }
-        .navigationTitle("Overview")
+        .navigationTitle(L("Overview"))
     }
 }
 
@@ -58,7 +58,7 @@ private struct DiskCard: View {
                     .font(.headline)
                 Spacer()
                 SizeText(bytes: disk.available, font: .title2.weight(.semibold))
-                Text("free").foregroundStyle(.secondary)
+                Text(L("free")).foregroundStyle(.secondary)
             }
             CapacityBar(total: disk.total, segments: [
                 .init(id: "other", bytes: max(0, disk.used - found), color: .gray),
@@ -67,24 +67,24 @@ private struct DiskCard: View {
                 .init(id: "safe", bytes: safe, color: Safety.safe.color),
             ])
             HStack(spacing: 18) {
-                LegendDot(color: .gray, title: "Everything else", bytes: max(0, disk.used - found))
-                LegendDot(color: Safety.safe.color, title: "Safe", bytes: safe)
-                LegendDot(color: Safety.caution.color, title: "Caution", bytes: caution)
-                LegendDot(color: Safety.review.color, title: "Review", bytes: review)
+                LegendDot(color: .gray, title: L("Everything else"), bytes: max(0, disk.used - found))
+                LegendDot(color: Safety.safe.color, title: Safety.safe.title, bytes: safe)
+                LegendDot(color: Safety.caution.color, title: Safety.caution.title, bytes: caution)
+                LegendDot(color: Safety.review.color, title: Safety.review.title, bytes: review)
             }
             if disk.purgeable > 1_000_000_000 || model.sweptBytes > 0 {
                 Divider()
                 VStack(alignment: .leading, spacing: 4) {
                     if model.sweptBytes > 0 {
                         Label {
-                            Text("You've moved \(Format.bytes(model.sweptBytes)) to the Trash. Empty it in Finder to get the space back.")
+                            Text(L("You've moved %@ to the Trash. Empty it in Finder to get the space back.", Format.bytes(model.sweptBytes)))
                         } icon: {
                             Image(systemName: "trash").foregroundStyle(.secondary)
                         }
                     }
                     if disk.purgeable > 1_000_000_000 {
                         Label {
-                            Text("macOS can also free \(Format.bytes(disk.purgeable)) of purgeable space on its own when it needs to.")
+                            Text(L("macOS can also free %@ of purgeable space on its own when it needs to.", Format.bytes(disk.purgeable)))
                         } icon: {
                             Image(systemName: "info.circle").foregroundStyle(.secondary)
                         }
@@ -108,14 +108,15 @@ private struct AccessCard: View {
                     .font(.system(size: 26))
                     .foregroundStyle(.orange)
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Some places are hidden from Dustpan")
+                    Text(L("Some places are hidden from Dustpan"))
                         .font(.headline)
-                    Text("macOS keeps \(locked.map(\.rule.name).joined(separator: ", ")) private until you give Dustpan Full Disk Access. Dustpan only reads sizes; it still asks before moving anything.")
+                    Text(L("macOS keeps %@ private until you give Dustpan Full Disk Access. Dustpan only reads sizes; it still asks before moving anything.",
+                           locked.map(\.rule.name).joined(separator: ", ")))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                     HStack {
-                        Button("Open Privacy Settings") { SystemActions.openFullDiskAccessSettings() }
-                        Button("Scan Again") { model.scan() }
+                        Button(L("Open Privacy Settings")) { SystemActions.openFullDiskAccessSettings() }
+                        Button(L("Scan Again")) { model.scan() }
                     }
                     .padding(.top, 4)
                 }
@@ -135,13 +136,13 @@ private struct QuickSweepCard: View {
                     .font(.system(size: 34))
                     .foregroundStyle(Safety.safe.color)
                 VStack(alignment: .leading, spacing: 4) {
-                    (Text(Format.bytes(safe)).fontWeight(.semibold) + Text(" of caches and build output grows back on its own"))
+                    emphasized(L("%@ of caches and build output grows back on its own"), Format.bytes(safe))
                         .font(.title3)
-                    Text("Package caches, build folders, logs and leftovers. Apps and tools recreate them when they need them.")
+                    Text(L("Package caches, build folders, logs and leftovers. Apps and tools recreate them when they need them."))
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                Button("Select All Safe") { model.select(.safe) }
+                Button(L("Select All Safe")) { model.select(.safe) }
                     .controlSize(.large)
                     .disabled(safe == 0)
             }
@@ -156,7 +157,7 @@ private struct CategoryCard: View {
     var body: some View {
         let findings = model.findings(in: category)
         Button {
-            model.sidebar = .category(category)
+            model.navigate(to: .category(category))
         } label: {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
@@ -176,12 +177,18 @@ private struct CategoryCard: View {
                     .lineLimit(2, reservesSpace: true)
                 HStack(spacing: 6) {
                     ForEach(Safety.allCases, id: \.self) { safety in
-                        let count = findings.filter { $0.rule.safety == safety }.count
-                        if count > 0 {
-                            Text("\(count) \(safety.title.lowercased())")
+                        let count = String(findings.filter { $0.rule.safety == safety }.count)
+                        if count != "0" {
+                            Text(safety == .safe ? L("%@ safe", count) : safety == .caution ? L("%@ caution", count) : L("%@ review", count))
                                 .font(.caption)
                                 .foregroundStyle(safety.color)
                         }
+                    }
+                    Spacer()
+                    if model.asksBeforeOpening(category) {
+                        Label(L("Asks first"), systemImage: "lock.fill")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                 }
             }

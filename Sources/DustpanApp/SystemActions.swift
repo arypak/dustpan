@@ -60,7 +60,7 @@ enum FinderTrash {
                 let message = String(decoding: errors.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
                 result.failures.append(.init(
                     target: target,
-                    reason: message.isEmpty ? "Finder couldn't move it." : message.trimmingCharacters(in: .whitespacesAndNewlines),
+                    reason: message.isEmpty ? L("Finder couldn't move it.") : message.trimmingCharacters(in: .whitespacesAndNewlines),
                     needsAdmin: false
                 ))
             }

@@ -1,0 +1,5 @@
+/* Turkish texts for the permission prompts macOS shows. */
+"NSDesktopFolderUsageDescription" = "Dustpan, Masaüstündeki projelerde node_modules gibi derleme klasörlerini arar. Sen bir şeyi taşımasını isteyene kadar yalnızca boyutları okur.";
+"NSDocumentsFolderUsageDescription" = "Dustpan, Belgeler klasöründeki projelerde node_modules gibi derleme klasörlerini arar. Sen bir şeyi taşımasını isteyene kadar yalnızca boyutları okur.";
+"NSDownloadsFolderUsageDescription" = "Dustpan, İndirilenler klasöründe eski yükleyicileri arar. Sen bir şeyi taşımasını isteyene kadar yalnızca boyutları okur.";
+"NSAppleEventsUsageDescription" = "Bir öğeyi taşımak için parolan gerektiğinde Dustpan, onu Çöp Sepetine taşıması için Finder'dan yardım ister.";

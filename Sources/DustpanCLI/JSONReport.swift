@@ -53,7 +53,7 @@ struct JSONReport: Encodable {
             let (cleanup, command): (String, String?) = switch finding.rule.cleanup {
             case .trash: ("trash", nil)
             case .command(let command): ("command", command)
-            case .manual(let steps): ("manual", steps)
+            case .manual: ("manual", finding.rule.cleanup.localizedSteps)
             }
             return Entry(
                 id: finding.rule.id, name: finding.rule.name, category: finding.rule.category.rawValue,

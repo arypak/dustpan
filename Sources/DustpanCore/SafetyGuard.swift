@@ -34,24 +34,24 @@ public struct SafetyGuard: Sendable {
         let path = resolvedPath(url)
         let homePath = home.path
 
-        if path == "/" || path.isEmpty { return "That's the whole disk." }
+        if path == "/" || path.isEmpty { return L("That's the whole disk.") }
 
         if path.hasPrefix(homePath + "/") {
             let relative = String(path.dropFirst(homePath.count + 1))
             if Self.protectedFolders.contains(relative) {
-                return "\(relative) is a folder macOS or you rely on."
+                return L("%@ is a folder macOS or you rely on.", "~/" + relative)
             }
             for tree in Self.protectedTrees where relative == tree || relative.hasPrefix(tree + "/") {
-                return "Anything inside ~/\(tree) is off limits."
+                return L("Anything inside %@ is off limits.", "~/" + tree)
             }
         } else if path == homePath || homePath.hasPrefix(path + "/") {
-            return "That's your home folder."
+            return L("That's your home folder.")
         } else if !isApplicationBundle(path) {
-            return "Dustpan only cleans inside your home folder and apps in /Applications."
+            return L("Dustpan only cleans inside your home folder and apps in /Applications.")
         }
 
         if FileSystem.exists(path + "/.git") {
-            return "It contains a Git repository, so it looks like source code."
+            return L("It contains a Git repository, so it looks like source code.")
         }
         return nil
     }

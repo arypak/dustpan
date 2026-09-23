@@ -58,15 +58,16 @@ struct FormatTests {
         (11_400_000_000, "11.4 GB"), (99_960_000, "100 MB"),
     ] as [(Int64, String)])
     func bytes(_ count: Int64, _ expected: String) {
-        #expect(Format.bytes(count) == expected)
+        #expect(Format.bytes(count, language: .english) == expected)
     }
 
     @Test("Relative dates")
     func relative() {
         let now = Date()
-        #expect(Format.relative(now, now: now) == "today")
-        #expect(Format.relative(now.addingTimeInterval(-86_400 * 1.5), now: now) == "yesterday")
-        #expect(Format.relative(now.addingTimeInterval(-86_400 * 21), now: now) == "3 weeks ago")
-        #expect(Format.relative(now.addingTimeInterval(-86_400 * 400), now: now) == "a year ago")
+        func relative(_ days: Double) -> String { Format.relative(now.addingTimeInterval(-86_400 * days), now: now, language: .english) }
+        #expect(relative(0) == "today")
+        #expect(relative(1.5) == "yesterday")
+        #expect(relative(21) == "3 weeks ago")
+        #expect(relative(400) == "a year ago")
     }
 }

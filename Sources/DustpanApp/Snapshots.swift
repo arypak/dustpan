@@ -28,12 +28,12 @@ enum Snapshots {
 
         let pages = [("overview", SidebarItem.overview)] + model.categoriesWithFindings.map { ($0.rawValue, SidebarItem.category($0)) }
         for (name, page) in pages {
-            model.sidebar = page
+            model.showForSnapshot(page)
             try? await Task.sleep(for: .milliseconds(700))
             capture(mainWindow, to: directory.appendingPathComponent("\(name)\(suffix).png"))
         }
 
-        model.sidebar = .overview
+        model.showForSnapshot(.overview)
         model.select(.safe)
         try? await Task.sleep(for: .milliseconds(500))
         capture(mainWindow, to: directory.appendingPathComponent("selected\(suffix).png"))
@@ -51,8 +51,14 @@ enum Snapshots {
 
     private static func capture(_ window: NSWindow?, to url: URL) {
         // The frame view includes the title bar and toolbar, not just the content.
+        // Always render at 2x, whichever display the window happens to be on.
         guard let view = window?.contentView?.superview ?? window?.contentView,
-              let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return }
+              let rep = NSBitmapImageRep(
+                  bitmapDataPlanes: nil, pixelsWide: Int(view.bounds.width * 2), pixelsHigh: Int(view.bounds.height * 2),
+                  bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                  colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0
+              ) else { return }
+        rep.size = view.bounds.size
         view.cacheDisplay(in: view.bounds, to: rep)
         try? rep.representation(using: .png, properties: [:])?.write(to: url)
     }

@@ -10,7 +10,14 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/overview-light.png" width="820" alt="Dustpan's overview: disk usage split into safe, caution and review, with space grouped by category">
+  <a href="https://github.com/arypak/dustpan/actions/workflows/ci.yml"><img src="https://github.com/arypak/dustpan/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
+</p>
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/overview-dark.png">
+    <img src="docs/screenshots/overview-light.png" width="820" alt="Dustpan's overview: disk usage split into safe, caution and review, with space grouped by category">
+  </picture>
 </p>
 
 ## Why
@@ -25,6 +32,8 @@ and moves the ones you pick to the Trash.
 
 - **Nothing is deleted.** Dustpan only moves things to the Trash. You can put anything back until you empty it.
 - **Every item explains itself.** What it is, what happens after it's gone, and which apps to quit first.
+- **Risky items stay hidden until you ask.** Anything marked *Review* (apps, VMs, backups, virtual environments)
+  opens only after you confirm, and nothing moves to the Trash without a second confirmation.
 - **Three safety levels.** *Safe* regenerates on its own. *Caution* comes back after a re-download or rebuild.
   *Review* is your data, or a tool you may still use.
 - **Leaves some jobs to the right tool.** Docker disks, simulator runtimes and Conda packages are best cleaned
@@ -33,6 +42,7 @@ and moves the ones you pick to the Trash.
   your home folder except apps, folders such as Documents or iCloud Drive, and any folder with a Git repository inside.
 - **Fast and quiet.** A full scan of a busy developer Mac takes a few seconds. No network, no telemetry,
   no background agent. It only reads until you ask it to move something.
+- **Speaks English and Turkish, light or dark.** It follows your system by default; change either in Settings.
 
 <p align="center">
   <img src="docs/screenshots/xcode-light.png" width="49%" alt="The Xcode and Simulators page, listing DerivedData, device support files and archives with their sizes">
@@ -67,27 +77,24 @@ $ dustpan
 
  Macintosh HD  ████████████████████████████░░░░  433 GB used of 494 GB · 61.2 GB free (+9.7 GB purgeable)
 
- SAFE  regenerates on its own                                   64.5 GB
-   xcode-derived-data     Xcode DerivedData                     18.4 GB
-   xcode-device-support   Device support files (3)              11.2 GB
-   uv-cache               uv cache                               6.8 GB
-   gradle-cache           Gradle caches                          5.6 GB
+ SAFE  regenerates on its own                                       64.5 GB
+   xcode-derived-data     Xcode DerivedData                         18.4 GB
+   xcode-device-support   Device support files (3)                  11.2 GB
+   uv-cache               uv cache                                   6.8 GB
+   gradle-cache           Gradle caches                              5.6 GB
    …
 
- CAUTION  comes back after a re-download or rebuild              5.9 GB
-   node-modules           node_modules (3)                       1.7 GB
+ CAUTION  comes back after a re-download or rebuild                  5.9 GB
+   node-modules           node_modules (3)                           1.7 GB
    …
 
- REVIEW  your data or tools you may still use                   33.5 GB
-   large-apps             Large apps (4)                        24.8 GB
-     Xcode                                                      12.4 GB  Last opened today
-     Final Cut Pro                                               6.1 GB  Last opened 8 months ago
-     Android Studio                                              3.4 GB  Last opened 5 months ago
-     … and 1 more (dustpan scan --all)
+ REVIEW  your data or tools you may still use                       33.5 GB
+   large-apps             Large apps (4)                            24.8 GB
+     Items stay hidden until you ask: dustpan scan --all
    …
 
  CLEAN IT YOURSELF  the tool that owns it should do the deleting
-   docker-desktop         Docker Desktop disk                   24.6 GB
+   docker-desktop         Docker Desktop disk                       24.6 GB
      run: docker system prune -a
    …
 
@@ -103,12 +110,13 @@ $ dustpan
 | Command | What it does |
 | --- | --- |
 | `dustpan` | Scan and show what's taking space |
-| `dustpan scan --all` | Also list every item inside each finding |
+| `dustpan scan --all` | Also list every item inside each finding, including the ones marked *Review* |
 | `dustpan scan --json` | Machine-readable report, sizes in bytes |
 | `dustpan clean --safe --dry-run` | Show what everything marked *Safe* would move, move nothing |
 | `dustpan clean --safe` | Move everything marked *Safe* to the Trash, after asking |
 | `dustpan clean uv-cache node-modules --older-than 60` | Pick rules by id, optionally only items untouched for 60 days |
 | `dustpan rules` | List every rule Dustpan knows |
+| `dustpan --lang tr` | Any command in Turkish (the default is your system language) |
 
 Build folders such as `node_modules` are searched for in `~/Desktop`, `~/Documents`, `~/Developer`, `~/Code` and
 similar folders. Point it elsewhere with `--roots ~/work,~/oss`, or in the app's Settings.
@@ -204,6 +212,21 @@ A folder inside a project only counts when the file that proves what it is sits 
 
 The table comes from `dustpan rules --markdown`.
 
+## Languages
+
+Dustpan speaks English and Türkçe. The app and the `dustpan` command follow your system language; switch in
+**Settings → General** or with `--lang en` / `--lang tr`. Sizes and dates follow the language too, so Turkish shows
+`11,4 GB` and `3 hafta önce`.
+
+<p align="center">
+  <img src="docs/screenshots/overview-tr.png" width="620" alt="Dustpan's overview in Turkish">
+</p>
+
+Translations live in [`Sources/DustpanCore/Translations.swift`](Sources/DustpanCore/Translations.swift), keyed by
+the English text. `swift test` fails when a text has no translation, when a translation is no longer used, or when
+one loses a `%@` placeholder, so a new language can't silently fall behind. To add one, add a case to `Language` in
+[`Localization.swift`](Sources/DustpanCore/Localization.swift) and a table next to the Turkish one.
+
 ## Full Disk Access
 
 macOS keeps some folders private, such as app containers, Mail, Messages and iPhone backups, until an app has
@@ -272,10 +295,15 @@ swift test
 make app
 ```
 
-`swift run dustpan` runs the command-line tool from source. To regenerate the screenshots with made-up data:
+```bash
+make uitest
+```
+
+`swift run dustpan` runs the command-line tool from source. `make uitest` clicks through the app's sidebar with
+made-up data and fails if a row stops opening its page. To regenerate the screenshots with made-up data:
 
 ```bash
-DUSTPAN_DEMO=1 DUSTPAN_SNAPSHOT_DIR="$PWD/docs/screenshots" DUSTPAN_SNAPSHOT_APPEARANCE=light build/Dustpan.app/Contents/MacOS/Dustpan
+DUSTPAN_DEMO=1 DUSTPAN_LANG=en DUSTPAN_SNAPSHOT_DIR="$PWD/docs/screenshots" DUSTPAN_SNAPSHOT_APPEARANCE=light build/Dustpan.app/Contents/MacOS/Dustpan
 ```
 
 ## License

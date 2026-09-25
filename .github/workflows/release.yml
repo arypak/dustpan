@@ -1,0 +1,38 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check the tag matches the version
+        run: |
+          version=$(sed -n 's/.*version = "\(.*\)".*/\1/p' Sources/DustpanCore/Dustpan.swift)
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "Tag $GITHUB_REF_NAME doesn't match version $version in Dustpan.swift"
+            exit 1
+          fi
+      - run: swift test
+      - run: Scripts/package.sh
+      - name: Write the release notes
+        run: |
+          awk -v v="${GITHUB_REF_NAME#v}" '
+            /^## / { if (printing) exit; if (index($0, "## " v) == 1) { printing = 1; next } }
+            printing { print }
+          ' CHANGELOG.md > notes.md
+          printf '\nDustpan is not signed with an Apple Developer ID yet. See Install in the README for opening it the first time.\n' >> notes.md
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/*.zip dist/*.tar.gz dist/SHA256SUMS \
+            --title "Dustpan ${GITHUB_REF_NAME#v}" --notes-file notes.md

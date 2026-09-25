@@ -14,3 +14,6 @@ jobs:
       - run: swift build
       - run: swift test
       - run: Scripts/build-app.sh
+      - name: Sidebar UI test
+        run: DUSTPAN_DEMO=1 DUSTPAN_UITEST=1 build/Dustpan.app/Contents/MacOS/Dustpan
+        timeout-minutes: 3

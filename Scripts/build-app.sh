@@ -14,6 +14,9 @@ VERSION=$(sed -n 's/.*version = "\(.*\)".*/\1/p' Sources/DustpanCore/Dustpan.swi
 BUNDLE_ID="${BUNDLE_ID:-io.github.arypak.Dustpan}"
 BUILD_NUMBER="${BUILD_NUMBER:-$(git rev-list --count HEAD 2>/dev/null || echo 1)}"
 SIGN_IDENTITY="${SIGN_IDENTITY:--}"
+# Notarization needs a secure timestamp; ad-hoc signatures can't have one.
+TIMESTAMP=--timestamp=none
+if [[ "$SIGN_IDENTITY" != "-" ]]; then TIMESTAMP=--timestamp; fi
 
 ARCHS=(--arch "$(uname -m)")
 if [[ "${1:-}" == "--universal" ]]; then
@@ -35,7 +38,7 @@ sed -e "s/__VERSION__/$VERSION/" -e "s/__BUILD__/$BUILD_NUMBER/" -e "s/__BUNDLE_
 printf 'APPL????' > "$APP/Contents/PkgInfo"
 cp "$BIN/dustpan" build/dustpan
 
-codesign --force --options runtime --timestamp=none --sign "$SIGN_IDENTITY" build/dustpan
-codesign --force --options runtime --timestamp=none --sign "$SIGN_IDENTITY" "$APP"
+codesign --force --options runtime "$TIMESTAMP" --sign "$SIGN_IDENTITY" build/dustpan
+codesign --force --options runtime "$TIMESTAMP" --sign "$SIGN_IDENTITY" "$APP"
 
 echo "Built $APP and build/dustpan, version $VERSION ($BUILD_NUMBER)"

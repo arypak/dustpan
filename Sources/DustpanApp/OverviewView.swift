@@ -114,9 +114,12 @@ private struct AccessCard: View {
                            locked.map(\.rule.name).joined(separator: ", ")))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
+                    Text(L("After you turn it on, reopen the app so macOS applies it."))
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
                     HStack {
                         Button(L("Open Privacy Settings")) { SystemActions.openFullDiskAccessSettings() }
-                        Button(L("Scan Again")) { model.scan() }
+                        Button(L("Reopen Dustpan")) { SystemActions.relaunch() }
                     }
                     .padding(.top, 4)
                 }

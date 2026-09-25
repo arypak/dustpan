@@ -75,12 +75,12 @@ public struct Cleaner: Sendable {
 
     /// When a folder and something inside it are both selected, trashing the folder covers both.
     static func withoutNestedTargets(_ targets: [Target]) -> [Target] {
-        let sorted = targets.sorted { $0.url.path < $1.url.path }
+        // Shortest paths first, so every folder is seen before anything inside it.
+        let sorted = targets.sorted { $0.url.path.count < $1.url.path.count }
         var kept: [Target] = []
         for target in sorted {
-            if let last = kept.last, target.url.path == last.url.path || target.url.path.hasPrefix(last.url.path + "/") {
-                continue
-            }
+            let path = target.url.path
+            if kept.contains(where: { path == $0.url.path || path.hasPrefix($0.url.path + "/") }) { continue }
             kept.append(target)
         }
         return kept

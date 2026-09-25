@@ -64,7 +64,8 @@ public struct ProjectScanner: Sendable {
         guard let rootPath = strdup(root.path) else { return }
         defer { free(rootPath) }
         var paths: [UnsafeMutablePointer<CChar>?] = [rootPath, nil]
-        guard let fts = fts_open(&paths, FTS_PHYSICAL | FTS_NOCHDIR | FTS_XDEV, nil) else { return }
+        // COMFOLLOW: follow the root itself if it's a symlink, but still no links below it.
+        guard let fts = fts_open(&paths, FTS_PHYSICAL | FTS_COMFOLLOW | FTS_NOCHDIR | FTS_XDEV, nil) else { return }
         defer { fts_close(fts) }
 
         var visited = 0

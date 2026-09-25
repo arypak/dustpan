@@ -166,9 +166,11 @@ public struct Scanner: Sendable {
         }
         guard !kinds.isEmpty, !options.projectRoots.isEmpty else { return [] }
         let byID = Dictionary(uniqueKeysWithValues: rules.map { ($0.id, $0) })
+        let safety = SafetyGuard(home: options.home)
         let hits = ProjectScanner(roots: options.projectRoots, kinds: kinds).find { Task.isCancelled }
         return hits.compactMap { hit in
-            guard let rule = byID[hit.ruleID] else { return nil }
+            // Build folders inside iCloud Drive can't be trashed without deleting them on other devices too.
+            guard let rule = byID[hit.ruleID], !safety.isInCloudStorage(hit.url) else { return nil }
             let project = hit.project
             let inside = hit.url.path.dropFirst(project.path.count + 1)
             return Job(

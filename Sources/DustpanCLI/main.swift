@@ -1,3 +1,4 @@
+import AppKit
 import DustpanCore
 import Foundation
 
@@ -243,7 +244,7 @@ func printReport(_ report: ScanReport, showAll: Bool, roots: [URL]) {
         print()
         print(" " + Style.bold(L("LOCKED")) + "  " + Style.dim(L("macOS hides these until your terminal has Full Disk Access")))
         print("   " + report.lockedFindings.map(\.rule.name).joined(separator: " · "))
-        print("   " + Style.dim(L("System Settings › Privacy & Security › Full Disk Access › add your terminal app")))
+        print("   " + Style.dim(L("System Settings › Privacy & Security › Full Disk Access › add your terminal app, then reopen it")))
     }
 
     let safe = report.cleanableBytes(.safe)
@@ -322,7 +323,9 @@ func printReport(_ report: ScanReport, showAll: Bool, roots: [URL]) {
     line.clear()
 
     let cutoff = olderThan.map { Date().addingTimeInterval(-Double($0) * 86_400) }
+    let interactive = isatty(STDIN_FILENO) == 1
     var chosen: [Target] = []
+    var review: [(finding: Finding, targets: [Target])] = []
     var quit = Set<String>()
     print()
     for finding in report.findings {
@@ -346,15 +349,40 @@ func printReport(_ report: ScanReport, showAll: Bool, roots: [URL]) {
             return (target.modified ?? .distantFuture) < cutoff
         }
         guard !targets.isEmpty else { continue }
-        chosen += targets
         quit.formUnion(finding.rule.quitFirst)
         let size = Format.bytes(targets.reduce(0) { $0 + $1.bytes })
         print(" " + Style.safety(finding.rule.safety, "●") + " " + finding.rule.name.padded(to: 38) + Style.bold(size).leftPadded(to: 9)
             + Style.dim("  " + count(targets.count)))
+        if finding.rule.safety == .review {
+            // Apps, VMs, backups: never in bulk. Each one gets its own yes below.
+            review.append((finding, targets))
+            print(Style.dim("     " + L("%@ is marked Review, so each item needs its own yes.", finding.rule.name)))
+            continue
+        }
+        chosen += targets
         for target in targets.prefix(dryRun ? .max : 4) {
             print(Style.dim("     " + Format.path(target.url)))
         }
         if !dryRun && targets.count > 4 { print(Style.dim("     " + L("… and %@ more", String(targets.count - 4)))) }
+    }
+
+    if !review.isEmpty {
+        print()
+        let items = review.flatMap { group in group.targets.map { (group.finding, $0) } }
+        if dryRun {
+            for (_, target) in items {
+                print(Style.dim("     " + Format.path(target.url) + "  " + Format.bytes(target.bytes)))
+            }
+            chosen += items.map(\.1)
+        } else if interactive {
+            for (_, target) in items {
+                let about = [Format.bytes(target.bytes), target.detail].compactMap { $0 }.joined(separator: " · ")
+                print(" " + L("Move %@ (%@)? [y/N]", Style.bold(target.label), about) + " ", terminator: "")
+                if isYes(readLine()) { chosen.append(target) }
+            }
+        } else {
+            print(" " + Style.yellow(L("Review items need you to confirm each one in a terminal, so %@ were skipped.", count(items.count))))
+        }
     }
 
     let total = chosen.reduce(0) { $0 + $1.bytes }
@@ -363,21 +391,25 @@ func printReport(_ report: ScanReport, showAll: Bool, roots: [URL]) {
         return
     }
     print()
-    if !quit.isEmpty {
-        print(" " + Style.yellow(L("Quit these first:")) + " " + quit.sorted().joined(separator: ", "))
+    let running = runningApps()
+    let owners = Set(chosen.compactMap { $0.owner(among: running)?.name })
+    let quitList = quit.sorted().map { name in
+        running.contains { $0.name.caseInsensitiveCompare(name) == .orderedSame } ? L("%@ (running)", name) : name
+    } + owners.subtracting(quit).sorted().map { L("%@ (running)", $0) }
+    if !quitList.isEmpty {
+        print(" " + Style.yellow(L("Quit these first:")) + " " + quitList.joined(separator: ", "))
     }
     if dryRun {
         print(" " + L("Dry run: %@ items, %@. Nothing was moved.", String(chosen.count), Format.bytes(total)) + "\n")
         return
     }
     if !assumeYes {
-        guard isatty(STDIN_FILENO) == 1 else {
+        guard interactive else {
             printError(L("not a terminal, so I can't ask. Pass --yes to confirm."))
             exit(1)
         }
         print(" " + L("Move %@ items (%@) to the Trash? [y/N]", String(chosen.count), Style.bold(Format.bytes(total))) + " ", terminator: "")
-        let answer = (readLine() ?? "").trimmingCharacters(in: .whitespaces).lowercased()
-        guard ["y", "yes", "e", "evet"].contains(answer) else {
+        guard isYes(readLine()) else {
             print(" " + L("Nothing moved.") + "\n")
             return
         }
@@ -393,6 +425,18 @@ func printReport(_ report: ScanReport, showAll: Bool, roots: [URL]) {
         print(" " + L("Empty the Trash when you're sure, and the space is yours again."))
     }
     print()
+}
+
+func isYes(_ answer: String?) -> Bool {
+    ["y", "yes", "e", "evet"].contains((answer ?? "").trimmingCharacters(in: .whitespaces).lowercased())
+}
+
+/// Apps with a Dock icon that are open right now.
+func runningApps() -> [RunningApp] {
+    NSWorkspace.shared.runningApplications.compactMap { app in
+        guard app.activationPolicy == .regular, let name = app.localizedName else { return nil }
+        return RunningApp(name: name, bundleID: app.bundleIdentifier)
+    }
 }
 
 // MARK: rules

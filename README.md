@@ -33,13 +33,16 @@ and moves the ones you pick to the Trash.
 - **Nothing is deleted.** Dustpan only moves things to the Trash. You can put anything back until you empty it.
 - **Every item explains itself.** What it is, what happens after it's gone, and which apps to quit first.
 - **Risky items stay hidden until you ask.** Anything marked *Review* (apps, VMs, backups, virtual environments)
-  opens only after you confirm, and nothing moves to the Trash without a second confirmation.
+  opens only after you confirm, and nothing moves to the Trash without a second confirmation. The command line
+  asks about each of them on its own and never moves them in bulk.
 - **Three safety levels.** *Safe* regenerates on its own. *Caution* comes back after a re-download or rebuild.
   *Review* is your data, or a tool you may still use.
 - **Leaves some jobs to the right tool.** Docker disks, simulator runtimes and Conda packages are best cleaned
   by their own commands, so Dustpan shows you the exact command instead of touching them.
 - **A guard on every move.** Right before anything moves, a last check refuses the system, anything outside
-  your home folder except apps, folders such as Documents or iCloud Drive, and any folder with a Git repository inside.
+  your home folder except apps, folders such as Documents, synced folders such as iCloud Drive, credential
+  folders such as `~/.ssh` and `~/.aws`, and any folder with a Git repository inside.
+- **Knows what's open.** If a cache you picked belongs to an app that's running, Dustpan tells you to quit it first.
 - **Fast and quiet.** A full scan of a busy developer Mac takes a few seconds. No network, no telemetry,
   no background agent. It only reads until you ask it to move something.
 - **Speaks English and Turkish, light or dark.** It follows your system by default; change either in Settings.
@@ -51,7 +54,43 @@ and moves the ones you pick to the Trash.
 
 ## Install
 
-Dustpan needs macOS 14 or later. Build it from source with Xcode 16 or later (Swift 6):
+Dustpan needs macOS 14 or later, on Apple silicon or Intel.
+
+### Download
+
+Get `Dustpan-<version>.zip` from the [latest release](https://github.com/arypak/dustpan/releases/latest), unzip it and
+drag Dustpan to Applications. Dustpan isn't signed with an Apple Developer ID yet, so macOS blocks it the first
+time you open it:
+
+1. Open Dustpan. When macOS says it can't check it for malicious software, click **Done**.
+2. Open **System Settings → Privacy & Security**, scroll to the note about Dustpan and click **Open Anyway**.
+
+Or clear the download flag from Terminal instead:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/Dustpan.app
+```
+
+The command-line tool is `dustpan-<version>-macos.tar.gz` on the same page. Unpack it, clear the flag, and move it
+somewhere on your `PATH`:
+
+```bash
+tar -xzf dustpan-*-macos.tar.gz
+```
+
+```bash
+xattr -d com.apple.quarantine dustpan
+```
+
+```bash
+sudo mv dustpan /usr/local/bin/
+```
+
+Each release lists SHA-256 checksums in `SHA256SUMS`.
+
+### Build from source
+
+With Xcode 16 or later (Swift 6):
 
 ```bash
 git clone https://github.com/arypak/dustpan.git
@@ -115,6 +154,7 @@ $ dustpan
 | `dustpan clean --safe --dry-run` | Show what everything marked *Safe* would move, move nothing |
 | `dustpan clean --safe` | Move everything marked *Safe* to the Trash, after asking |
 | `dustpan clean uv-cache node-modules --older-than 60` | Pick rules by id, optionally only items untouched for 60 days |
+| `dustpan clean large-apps` | Rules marked *Review* ask about each item separately, even with `--yes` |
 | `dustpan rules` | List every rule Dustpan knows |
 | `dustpan --lang tr` | Any command in Turkish (the default is your system language) |
 
@@ -163,7 +203,7 @@ A folder inside a project only counts when the file that proves what it is sits 
 | `cocoapods-cache` | Pods CocoaPods downloaded for your projects. | Safe | Trash |
 | `dart-pub-cache` | Packages downloaded by flutter pub get and dart pub get. | Caution | Trash |
 | `go-build-cache` | Compiled Go packages. | Safe | Trash |
-| `go-module-cache` | Go modules downloaded for your projects. | Caution | Trash |
+| `go-module-cache` | Go modules downloaded for your projects. | Caution | `go clean -modcache` |
 | `cargo-cache` | Crates and git checkouts downloaded by Cargo. | Safe | Trash |
 | `nuget-packages` | NuGet packages downloaded for .NET projects. | Caution | Trash |
 | `composer-cache` | PHP packages cached by Composer. | Safe | Trash |
@@ -232,6 +272,7 @@ one loses a `%@` placeholder, so a new language can't silently fall behind. To a
 macOS keeps some folders private, such as app containers, Mail, Messages and iPhone backups, until an app has
 **Full Disk Access**. Without it Dustpan still finds everything else and tells you what it couldn't see. To let it look:
 **System Settings → Privacy & Security → Full Disk Access**, then add Dustpan, or your terminal app for the `dustpan` command.
+macOS only applies the change to apps started afterwards, so reopen Dustpan (it has a button for that) or your terminal.
 
 ## FAQ
 
@@ -242,6 +283,10 @@ for a while; that space shows up as *purgeable* and macOS frees it when it needs
 **Why is the freed space sometimes smaller than shown?**
 Some tools share files between their cache and your projects: pnpm uses hard links and uv uses APFS clones.
 Dustpan counts shared files once per folder, the way `du` does, and says so on those rules.
+
+**Why doesn't it list the build folders on my Desktop?**
+If iCloud Drive syncs your Desktop and Documents, those folders live in iCloud Drive. Moving a build folder from
+there to the Trash would delete it on your other devices too, so Dustpan leaves them out.
 
 **Can I undo?**
 Yes, until you empty the Trash. Open the Trash in Finder, select what you want back and choose *Put Back*.
@@ -300,7 +345,9 @@ make uitest
 ```
 
 `swift run dustpan` runs the command-line tool from source. `make uitest` clicks through the app's sidebar with
-made-up data and fails if a row stops opening its page. To regenerate the screenshots with made-up data:
+made-up data and fails if a row stops opening its page. `Scripts/package.sh` builds the universal release files
+into `dist/`; pushing a `v*` tag makes GitHub Actions build and publish them. To regenerate the screenshots with
+made-up data:
 
 ```bash
 DUSTPAN_DEMO=1 DUSTPAN_LANG=en DUSTPAN_SNAPSHOT_DIR="$PWD/docs/screenshots" DUSTPAN_SNAPSHOT_APPEARANCE=light build/Dustpan.app/Contents/MacOS/Dustpan

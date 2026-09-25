@@ -21,10 +21,13 @@ public struct SafetyGuard: Sendable {
 
     /// Folders Dustpan never touches anything inside of.
     static let protectedTrees = [
-        ".ssh", ".gnupg", ".Trash", "Library/Keychains", "Library/Mobile Documents", "Library/CloudStorage",
+        ".ssh", ".gnupg", ".aws", ".kube", ".docker", ".password-store", ".Trash", "Library/Keychains",
         "Library/Mail", "Library/Messages", "Library/Safari", "Library/Accounts",
         "Pictures/Photos Library.photoslibrary",
-    ]
+    ] + cloudTrees
+
+    /// Synced folders: trashing something here removes it from the user's other devices too.
+    static let cloudTrees = ["Library/Mobile Documents", "Library/CloudStorage"]
 
     /// Folders outside the home folder where apps may live.
     static let applicationFolders = ["/Applications"]
@@ -42,6 +45,9 @@ public struct SafetyGuard: Sendable {
                 return L("%@ is a folder macOS or you rely on.", "~/" + relative)
             }
             for tree in Self.protectedTrees where relative == tree || relative.hasPrefix(tree + "/") {
+                if Self.cloudTrees.contains(tree) {
+                    return L("It's in iCloud Drive or another synced folder, so moving it to the Trash would remove it from your other devices too.")
+                }
                 return L("Anything inside %@ is off limits.", "~/" + tree)
             }
         } else if path == homePath || homePath.hasPrefix(path + "/") {
@@ -54,6 +60,13 @@ public struct SafetyGuard: Sendable {
             return L("It contains a Git repository, so it looks like source code.")
         }
         return nil
+    }
+
+    /// Whether `url` really lives in iCloud Drive or another synced folder, even when reached through a
+    /// symlink such as a Desktop that iCloud keeps in sync.
+    public func isInCloudStorage(_ url: URL) -> Bool {
+        let path = resolvedPath(url)
+        return Self.cloudTrees.contains { path.hasPrefix(home.path + "/" + $0 + "/") }
     }
 
     private func isApplicationBundle(_ path: String) -> Bool {

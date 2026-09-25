@@ -42,6 +42,8 @@ struct SizeText: View {
 /// A native checkbox that can show a mixed state, for "some of these are selected".
 struct Checkbox: NSViewRepresentable {
     var state: NSControl.StateValue
+    /// What VoiceOver reads, since the checkbox itself has no title.
+    var label: String
     var action: () -> Void
 
     func makeNSView(context: Context) -> NSButton {
@@ -55,6 +57,7 @@ struct Checkbox: NSViewRepresentable {
         context.coordinator.action = action
         button.allowsMixedState = state == .mixed
         button.state = state
+        button.setAccessibilityLabel(label)
     }
 
     func makeCoordinator() -> Coordinator { Coordinator(action: action) }

@@ -269,7 +269,9 @@ public enum Catalog {
             "go-module-cache", "Go module cache", .packages, .caution,
             summary: "Go modules downloaded for your projects.",
             aftermath: "Go downloads modules again on the next build.",
-            locations: [.item("~/go/pkg/mod")]
+            locations: [.item("~/go/pkg/mod")],
+            cleanup: .command("go clean -modcache"),
+            note: "Go makes these folders read-only, so they couldn't be emptied from the Trash. Let Go remove them."
         ),
         Rule(
             "cargo-cache", "Cargo registry", .packages, .safe,

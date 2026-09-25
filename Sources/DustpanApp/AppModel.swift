@@ -297,14 +297,22 @@ final class AppModel {
     var selectedTargets: [Target] { selectedGroups.flatMap(\.targets) }
     var selectedBytes: Int64 { selectedTargets.reduce(0) { $0 + $1.bytes } }
 
-    /// Apps the selected rules ask you to quit, with whether each seems to be running.
+    /// Apps to quit before sweeping: the ones the selected rules name, plus any open app whose
+    /// caches are selected. Open ones are flagged.
     var appsToQuit: [(name: String, running: Bool)] {
-        let names = Set(selectedGroups.flatMap(\.finding.rule.quitFirst)).sorted()
-        let running = NSWorkspace.shared.runningApplications.compactMap(\.localizedName).map { $0.lowercased() }
-        return names.map { name in
-            let key = name.lowercased().replacingOccurrences(of: "vs code", with: "code")
-            return (name, running.contains(key))
+        let running = NSWorkspace.shared.runningApplications.compactMap { app -> RunningApp? in
+            guard app.activationPolicy == .regular, let name = app.localizedName else { return nil }
+            return RunningApp(name: name, bundleID: app.bundleIdentifier)
         }
+        // VS Code calls itself "Code".
+        func key(_ name: String) -> String { name.lowercased().replacingOccurrences(of: "vs code", with: "code") }
+        let runningKeys = Set(running.map { key($0.name) })
+        var apps = Set(selectedGroups.flatMap(\.finding.rule.quitFirst)).sorted().map { ($0, runningKeys.contains(key($0))) }
+        let owners = Set(selectedTargets.compactMap { $0.owner(among: running)?.name })
+        for owner in owners.sorted() where !apps.contains(where: { key($0.0) == key(owner) }) {
+            apps.append((owner, true))
+        }
+        return apps
     }
 
     // MARK: Cleaning

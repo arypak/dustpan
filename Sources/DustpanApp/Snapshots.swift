@@ -25,6 +25,11 @@ enum Snapshots {
         mainWindow?.setContentSize(NSSize(width: 1100, height: 720))
         while model.phase != .ready { try? await Task.sleep(for: .milliseconds(200)) }
         try? await Task.sleep(for: .seconds(1))
+        // The sidebar remembers the width it was last dragged to; use the default one.
+        if let content = mainWindow?.contentView, let split = splitViews(in: content).first {
+            split.setPosition(300, ofDividerAt: 0)
+            try? await Task.sleep(for: .milliseconds(300))
+        }
 
         let pages = [("overview", SidebarItem.overview)] + model.categoriesWithFindings.map { ($0.rawValue, SidebarItem.category($0)) }
         for (name, page) in pages {
@@ -43,6 +48,10 @@ enum Snapshots {
         model.sheet = nil
         model.selection.removeAll()
         NSApp.terminate(nil)
+    }
+
+    private static func splitViews(in view: NSView) -> [NSSplitView] {
+        ((view as? NSSplitView).map { [$0] } ?? []) + view.subviews.flatMap(splitViews)
     }
 
     private static var mainWindow: NSWindow? {

@@ -98,6 +98,7 @@ struct Sidebar: View {
                                     .font(.caption2)
                                     .foregroundStyle(.tertiary)
                                     .help(L("Asks before opening"))
+                                    .accessibilityLabel(L("Asks before opening"))
                             }
                         }
                         .badge(model.report == nil ? Text("") : Text(Format.bytes(model.bytes(in: category))).monospacedDigit())

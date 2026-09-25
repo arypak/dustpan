@@ -6,3 +6,4 @@ xcuserdata/
 DerivedData/
 # Local Claude Code settings
 /.claude/
+/dist/

@@ -87,14 +87,16 @@ private struct FindingSection: View {
         let rule = finding.rule
         return HStack(alignment: .center, spacing: 10) {
             if model.isSelectable(finding) {
-                Checkbox(state: model.state(of: finding)) { model.toggle(finding) }
+                Checkbox(state: model.state(of: finding), label: rule.name) { model.toggle(finding) }
             } else {
+                let status = finding.locked ? L("Needs Full Disk Access")
+                    : !model.isRevealed(finding) ? L("Asks before opening")
+                    : L("The tool that owns this should clean it")
                 Image(systemName: finding.locked ? "lock.fill" : !model.isRevealed(finding) ? "eye.slash" : "terminal")
                     .foregroundStyle(.secondary)
                     .frame(width: 18)
-                    .help(finding.locked ? L("Needs Full Disk Access")
-                          : !model.isRevealed(finding) ? L("Asks before opening")
-                          : L("The tool that owns this should clean it"))
+                    .help(status)
+                    .accessibilityLabel(status)
             }
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 8) {
@@ -158,7 +160,7 @@ private struct TargetRow: View {
     var body: some View {
         HStack(spacing: 10) {
             if showsCheckbox {
-                Checkbox(state: model.selection.contains(target.id) ? .on : .off) { model.toggle(target) }
+                Checkbox(state: model.selection.contains(target.id) ? .on : .off, label: target.label) { model.toggle(target) }
                     .padding(.leading, 22)
             } else {
                 // Line up with the title above, which sits after a checkbox or an icon.
@@ -188,6 +190,7 @@ private struct TargetRow: View {
             .buttonStyle(.borderless)
             .opacity(hovering ? 1 : 0.35)
             .help(L("Show in Finder"))
+            .accessibilityLabel(L("Show in Finder"))
         }
         .onHover { hovering = $0 }
         .contextMenu {

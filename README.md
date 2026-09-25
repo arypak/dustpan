@@ -48,8 +48,7 @@ and moves the ones you pick to the Trash.
 - **Speaks English and Turkish, light or dark.** It follows your system by default; change either in Settings.
 
 <p align="center">
-  <img src="docs/screenshots/xcode-light.png" width="49%" alt="The Xcode and Simulators page, listing DerivedData, device support files and archives with their sizes">
-  <img src="docs/screenshots/confirm-light.png" width="42%" alt="The confirmation sheet: a list of what will move to the Trash, with apps to quit first">
+  <img src="docs/demo.gif" width="820" alt="Dustpan at work: the overview, a category that explains each item, selecting everything that grows back, confirming, and the result">
 </p>
 
 ## Install
@@ -351,6 +350,20 @@ made-up data:
 
 ```bash
 DUSTPAN_DEMO=1 DUSTPAN_LANG=en DUSTPAN_SNAPSHOT_DIR="$PWD/docs/screenshots" DUSTPAN_SNAPSHOT_APPEARANCE=light build/Dustpan.app/Contents/MacOS/Dustpan
+```
+
+The animation comes from a recorded tour of the same made-up Mac, and the social preview card from the screenshots:
+
+```bash
+DUSTPAN_DEMO=1 DUSTPAN_LANG=en DUSTPAN_SNAPSHOT_TOUR=1 DUSTPAN_SNAPSHOT_DIR=/tmp/dustpan-tour DUSTPAN_SNAPSHOT_APPEARANCE=light build/Dustpan.app/Contents/MacOS/Dustpan
+```
+
+```bash
+swift Scripts/make-demo-gif.swift /tmp/dustpan-tour
+```
+
+```bash
+swift Scripts/make-social-preview.swift
 ```
 
 ## License

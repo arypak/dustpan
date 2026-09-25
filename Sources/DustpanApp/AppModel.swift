@@ -321,7 +321,15 @@ final class AppModel {
         let targets = selectedTargets
         guard !targets.isEmpty else { return }
         phase = .cleaning
-        let result = await Task.detached(priority: .userInitiated) { Cleaner().clean(targets) }.value
+        let result: CleanResult
+        if DemoData.isEnabled {
+            // Demo items don't exist on disk; pretend they moved so the rest of the flow can be shown.
+            var pretend = CleanResult()
+            pretend.moved = targets
+            result = pretend
+        } else {
+            result = await Task.detached(priority: .userInitiated) { Cleaner().clean(targets) }.value
+        }
         apply(result)
         self.result = result
         sheet = .result
@@ -359,7 +367,8 @@ final class AppModel {
         }
         self.report = ScanReport(
             findings: remaining,
-            disk: SystemInfo.disk() ?? report.disk,
+            // The demo keeps its made-up disk; reading this Mac's would mix the two.
+            disk: DemoData.isEnabled ? report.disk : SystemInfo.disk() ?? report.disk,
             hasFullDiskAccess: report.hasFullDiskAccess,
             trashBytes: report.trashBytes.map { $0 + outcome.movedBytes },
             startedAt: report.startedAt,

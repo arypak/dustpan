@@ -385,4 +385,13 @@ final class AppModel {
     func showForSnapshot(_ item: SidebarItem) {
         sidebar = item
     }
+
+    /// The sweep the README animation shows: the selection "moves" without anything touching the disk.
+    func pretendSweep() {
+        var pretend = CleanResult()
+        pretend.moved = selectedTargets
+        apply(pretend)
+        result = pretend
+        sheet = .result
+    }
 }

@@ -5,7 +5,8 @@ import DustpanCore
 /// Screen Recording permission. Start the app with `DUSTPAN_SNAPSHOT_DIR=/some/folder`;
 /// add `DUSTPAN_SNAPSHOT_APPEARANCE=dark` or `light` to force one, and `DUSTPAN_DEMO=1`
 /// to show made-up data instead of your own. With `DUSTPAN_SNAPSHOT_TOUR=1` it instead walks
-/// through a sweep and saves numbered frames for the README animation. The app quits when it's done.
+/// through a sweep and saves numbered frames for the README animation; the tour only runs with
+/// `DUSTPAN_DEMO=1`. The app quits when it's done.
 @MainActor
 enum Snapshots {
     static var directory: URL? {
@@ -14,6 +15,13 @@ enum Snapshots {
 
     static func runIfRequested(_ model: AppModel) async {
         guard let directory else { return }
+        let touring = ProcessInfo.processInfo.environment["DUSTPAN_SNAPSHOT_TOUR"] != nil
+        // The animation is published, and it walks through a sweep: never on this Mac's own files.
+        if touring && !DemoData.isEnabled {
+            fputs("The snapshot tour only runs with DUSTPAN_DEMO=1, on made-up data.\n", stderr)
+            NSApp.terminate(nil)
+            return
+        }
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let appearance = ProcessInfo.processInfo.environment["DUSTPAN_SNAPSHOT_APPEARANCE"]
         let suffix = appearance.map { "-" + $0 } ?? ""
@@ -32,7 +40,7 @@ enum Snapshots {
             try? await Task.sleep(for: .milliseconds(300))
         }
 
-        if ProcessInfo.processInfo.environment["DUSTPAN_SNAPSHOT_TOUR"] != nil {
+        if touring {
             await tour(model, into: directory)
             NSApp.terminate(nil)
             return
@@ -58,6 +66,7 @@ enum Snapshots {
     }
 
     /// A sweep from start to finish: look around, read an explanation, select, confirm, done.
+    /// The sweep itself is pretended, so the tour can't move anything even if run by mistake.
     private static func tour(_ model: AppModel, into directory: URL) async {
         func frame(_ name: String) {
             capture(mainWindow, sheet: NSApp.windows.first { $0.isSheet && $0.isVisible }, to: directory.appendingPathComponent(name + ".png"))
@@ -80,7 +89,7 @@ enum Snapshots {
         model.sheet = .confirm
         await pause(1.0)
         frame("4-confirm")
-        await model.clean()
+        model.pretendSweep()
         await pause(1.0)
         frame("5-result")
         model.finishSweep()

@@ -79,6 +79,10 @@ enum Translations {
         "Yarn cache": "Yarn önbelleği",
         "Packages downloaded by Yarn.": "Yarn'ın indirdiği paketler.",
         "Yarn downloads them again when a project needs them.": "Bir proje ihtiyaç duyduğunda Yarn onları yeniden indirir.",
+        // Rule: yarn-berry-cache
+        "Yarn global cache": "Yarn genel önbelleği",
+        "Packages kept by Yarn 2 and later, shared by all your projects.": "Yarn 2 ve sonrasının tuttuğu, tüm projelerinin ortak kullandığı paketler.",
+        "Projects that use Plug'n'Play won't run until you run yarn install in them again.": "Plug'n'Play kullanan projeler, içlerinde yeniden yarn install çalıştırana kadar çalışmaz.",
         // Rule: pnpm-store
         "pnpm store": "pnpm deposu",
         "pnpm's global package store and metadata cache.": "pnpm'in genel paket deposu ve üst veri önbelleği.",
@@ -101,6 +105,10 @@ enum Translations {
         "Poetry cache": "Poetry önbelleği",
         "Packages and metadata cached by Poetry.": "Poetry'nin önbelleğe aldığı paketler ve üst veriler.",
         "Poetry downloads them again when needed.": "Poetry gerektiğinde onları yeniden indirir.",
+        // Rule: poetry-venvs
+        "Poetry virtual environments": "Poetry sanal ortamları",
+        "Virtual environments Poetry created for your projects. It keeps them in its cache folder.": "Poetry'nin projelerin için oluşturduğu sanal ortamlar. Bunları kendi önbellek klasöründe tutar.",
+        "A project won't run until you run poetry install in it again.": "Bir proje, içinde yeniden poetry install çalıştırana kadar çalışmaz.",
         // Rule: conda-packages
         "Conda package cache": "Conda paket önbelleği",
         "Package archives and extracted packages kept by Conda.": "Conda'nın sakladığı paket arşivleri ve açılmış paketler.",

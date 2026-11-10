@@ -174,7 +174,13 @@ public enum Catalog {
             "yarn-cache", "Yarn cache", .packages, .safe,
             summary: "Packages downloaded by Yarn.",
             aftermath: "Yarn downloads them again when a project needs them.",
-            locations: [.item("~/Library/Caches/Yarn"), .item("~/.yarn/berry/cache")]
+            locations: [.item("~/Library/Caches/Yarn")]
+        ),
+        Rule(
+            "yarn-berry-cache", "Yarn global cache", .packages, .caution,
+            summary: "Packages kept by Yarn 2 and later, shared by all your projects.",
+            aftermath: "Projects that use Plug'n'Play won't run until you run yarn install in them again.",
+            locations: [.item("~/.yarn/berry/cache")]
         ),
         Rule(
             "pnpm-store", "pnpm store", .packages, .caution,
@@ -209,7 +215,13 @@ public enum Catalog {
             "poetry-cache", "Poetry cache", .packages, .safe,
             summary: "Packages and metadata cached by Poetry.",
             aftermath: "Poetry downloads them again when needed.",
-            locations: [.item("~/Library/Caches/pypoetry")]
+            locations: [.item("~/Library/Caches/pypoetry/cache"), .item("~/Library/Caches/pypoetry/artifacts")]
+        ),
+        Rule(
+            "poetry-venvs", "Poetry virtual environments", .packages, .review,
+            summary: "Virtual environments Poetry created for your projects. It keeps them in its cache folder.",
+            aftermath: "A project won't run until you run poetry install in it again.",
+            locations: [.children("~/Library/Caches/pypoetry/virtualenvs")]
         ),
         Rule(
             "conda-packages", "Conda package cache", .packages, .safe,

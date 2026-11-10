@@ -3,7 +3,8 @@ import Foundation
 
 /// Finds build output inside project folders: `node_modules`, Flutter's `build/`, Cargo's `target/`…
 /// A folder only counts when the file that proves what it is sits next to it, so a hand-made
-/// `build` folder in a random place is never touched.
+/// `build` folder in a random place is never touched. Folders with everyday names such as `build`
+/// are also left alone when what's inside looks like source.
 public struct ProjectScanner: Sendable {
     public struct Hit: Sendable, Hashable {
         public let ruleID: String
@@ -113,10 +114,30 @@ public struct ProjectScanner: Sendable {
                 if FileSystem.exists(path + "/" + inner) { return ruleID }
             } else if kind.folders.contains(name),
                       kind.markers.contains(where: { FileSystem.exists(parent + "/" + $0) }) {
-                return ruleID
+                // `.dart_tool` or `node_modules` can only be tool output. `build`, `target` and `Pods`
+                // are names people also give their own folders.
+                let unmistakable = name.hasPrefix(".") || name == "node_modules"
+                if unmistakable || !Self.looksLikeSource(path) { return ruleID }
             }
         }
         return nil
+    }
+
+    /// Files people write and tools don't put at the top of their output.
+    static let sourceNames: Set<String> = ["Makefile", "Dockerfile", "README", "LICENSE"]
+    static let sourceExtensions: Set<String> = [
+        "sh", "bash", "zsh", "py", "rb", "pl", "js", "mjs", "cjs", "ts", "dart", "gradle", "kts", "groovy",
+        "swift", "java", "kt", "rs", "go", "c", "h", "cpp", "md", "yml", "yaml", "toml", "cmake", "mk",
+    ]
+
+    /// Whether a folder holds a project of its own, or scripts and sources right at its top.
+    /// Build output keeps its files in subfolders. A folder that can't be read counts as source.
+    static func looksLikeSource(_ path: String) -> Bool {
+        guard let names = FileSystem.list(path) else { return true }
+        return names.contains { name in
+            projectMarkers.contains(name) || sourceNames.contains(name)
+                || sourceExtensions.contains((name as NSString).pathExtension.lowercased())
+        }
     }
 
     /// The outermost folder above `path` (but inside the scan root) that looks like a project.

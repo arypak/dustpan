@@ -120,8 +120,10 @@ public struct Scanner: Sendable {
     func locationJobs(for rules: [Rule], resolver: PathResolver) -> [Job] {
         var jobs: [Job] = []
         var claimed: [String] = []
-        // Specific rules claim their paths first; catch-alls get what's left.
-        let ordered = rules.filter { !$0.isCatchAll } + rules.filter(\.isCatchAll)
+        let wanted = Set(rules.map(\.id))
+        // Specific rules claim their paths first; catch-alls get what's left. Rules left out of this
+        // scan still claim theirs, so a catch-all run on its own can't pick up what a stricter rule owns.
+        let ordered = self.rules.filter { !$0.isCatchAll } + self.rules.filter(\.isCatchAll)
         for rule in ordered {
             guard rule.discovery == .locations || rule.discovery == .deviceBackups else { continue }
             for location in rule.locations {
@@ -131,6 +133,7 @@ public struct Scanner: Sendable {
                         : Self.isClaimed(candidate.url.path, by: claimed) ? [] : [candidate.url.path]
                     for path in paths {
                         claimed.append(path)
+                        guard wanted.contains(rule.id) else { continue }
                         let url = URL(fileURLWithPath: path)
                         var modified = candidate.modified
                         if path != candidate.url.path, case .found(let entry) = FileSystem.lookup(path) {

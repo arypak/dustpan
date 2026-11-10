@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+Stricter about what counts as safe.
+
+- Poetry keeps its virtual environments inside its cache folder. They are now a rule of their own,
+  marked Review, and the Safe Poetry rule only covers downloads.
+- Yarn's global cache (Yarn 2 and later) is marked Caution: Plug'n'Play projects run from it.
+- A `build`, `target` or `Pods` folder isn't treated as build output when its top level holds a
+  project of its own, sources or scripts.
+- `dustpan clean app-caches` on its own no longer picks up folders that other rules own, such as
+  test browsers or the pnpm cache.
+- The snapshot tour that records the README animation can't move anything.
+
 ## 0.1.0 (2026-09-25)
 
 The first release.

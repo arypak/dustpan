@@ -163,8 +163,8 @@ similar folders. Point it elsewhere with `--roots ~/work,~/oss`, or in the app's
 ## What it finds
 
 A folder inside a project only counts when the file that proves what it is sits next to it: `node_modules` needs a
-`package.json`, Flutter's `build/` needs a `pubspec.yaml`, `target/` needs a `Cargo.toml` or `pom.xml`. A hand-made
-`build` folder is never touched.
+`package.json`, Flutter's `build/` needs a `pubspec.yaml`, `target/` needs a `Cargo.toml` or `pom.xml`. A `build`,
+`target` or `Pods` folder is also left out when its top level holds a project of its own, sources or scripts.
 
 | Rule | What it finds | Safety | Cleanup |
 | --- | --- | --- | --- |
@@ -189,11 +189,13 @@ A folder inside a project only counts when the file that proves what it is sits 
 | `homebrew-cache` | Bottles and source archives Homebrew downloaded while installing. | Safe | Trash |
 | `npm-cache` | Every package npm has downloaded. | Safe | Trash |
 | `yarn-cache` | Packages downloaded by Yarn. | Safe | Trash |
+| `yarn-berry-cache` | Packages kept by Yarn 2 and later, shared by all your projects. | Caution | Trash |
 | `pnpm-store` | pnpm's global package store and metadata cache. | Caution | Trash |
 | `bun-cache` | Packages downloaded by Bun. | Safe | Trash |
 | `pip-cache` | Wheels and downloads cached by pip. | Safe | Trash |
 | `uv-cache` | Python packages downloaded and built by uv. | Safe | Trash |
 | `poetry-cache` | Packages and metadata cached by Poetry. | Safe | Trash |
+| `poetry-venvs` | Virtual environments Poetry created for your projects. It keeps them in its cache folder. | Review | Trash |
 | `conda-packages` | Package archives and extracted packages kept by Conda. | Safe | `conda clean --all` |
 | `pyinstaller-cache` | Binaries PyInstaller already processed for earlier builds. | Safe | Trash |
 | `gradle-cache` | Dependencies and build caches downloaded by Gradle (Android, Kotlin, Java). | Safe | Trash |
